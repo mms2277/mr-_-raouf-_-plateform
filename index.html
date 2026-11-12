@@ -70,7 +70,6 @@
         .form-group { margin-bottom: 15px; text-align: left; }
         label { display: block; font-weight: bold; margin-bottom: 6px; color: #444; font-size: 14px; text-align: left; }
         
-        /* Force English Numerals and Left Alignment on all Inputs */
         input, select, textarea { 
             width: 100%; 
             padding: 11px; 
@@ -81,9 +80,6 @@
             direction: ltr !important; 
             text-align: left !important;
             font-family: Arial, Helvetica, sans-serif !important;
-            -moz-font-feature-settings: "lnum" 1;
-            -webkit-font-feature-settings: "lnum" 1;
-            font-feature-settings: "lnum" 1;
         }
         
         .btn { width: 100%; padding: 12px; background: linear-gradient(45deg, var(--primary), var(--secondary)); color: white; border: none; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 5px; }
@@ -93,7 +89,6 @@
         .btn-secondary { background: linear-gradient(45deg, #7f8c8d, #95a5a6); }
         .btn-excel { background: linear-gradient(45deg, #1d6f42, #107c41); }
 
-        /* Teacher Navigation Buttons Aligned to Left */
         .teacher-nav-container {
             display: flex; 
             gap: 8px; 
@@ -113,6 +108,51 @@
         
         .progress-bar-container { background: #e0e0e0; border-radius: 10px; height: 10px; width: 100%; margin-bottom: 15px; overflow: hidden; }
         .progress-bar-fill { background: linear-gradient(90deg, #27ae60, #2ecc71); height: 100%; width: 0%; transition: width 0.3s ease; }
+
+        /* لوحة الأسئلة التفاعلية بالألوان الجديدة */
+        .questions-palette {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f1f5f9;
+            border-radius: 12px;
+            border: 1px solid #cbd5e1;
+            justify-content: flex-start;
+        }
+        .q-palette-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 8px;
+            border: 2px solid #cbd5e1;
+            background: #ef4444; /* أحمر لغير المجاب */
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            font-family: Arial, sans-serif;
+            direction: ltr;
+        }
+        .q-palette-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        .q-palette-btn.answered {
+            background: #27ae60; /* أخضر للمجاب */
+            border-color: #27ae60;
+            color: white;
+        }
+        .q-palette-btn.current {
+            background: #eab308 !important; /* أصفر للسؤال الحالي */
+            border-color: #ca8a04 !important;
+            color: #000 !important;
+            box-shadow: 0 0 10px rgba(234, 179, 8, 0.7);
+        }
 
         .option-btn { background: white; border: 2px solid #e2e8f0; text-align: left; margin: 8px 0; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; font-size: 14px; }
         .option-btn.selected { background: var(--primary); color: white; border-color: var(--primary); }
@@ -216,7 +256,6 @@
     <div id="teacherScreen" class="screen">
         <h3 style="color: var(--primary); margin-bottom: 15px; text-align: left;"><i class="fas fa-tools"></i> Teacher Control Panel</h3>
         
-        <!-- Aligned to Left Side -->
         <div class="teacher-nav-container">
             <button type="button" class="btn" onclick="toggleTeacherView('addExam')">➕ Add Exam</button>
             <button type="button" class="btn btn-success" onclick="toggleTeacherView('viewResults')">📊 Comprehensive Results</button>
@@ -243,7 +282,7 @@
             </div>
             <div class="form-group">
                 <label>Duration (Minutes):</label>
-                <input type="number" id="newExamDuration" value="10" min="1" lang="en">
+                <input type="number" id="newExamDuration" value="10" min="1" lang="en" inputmode="numeric">
             </div>
 
             <hr style="margin: 15px 0;">
@@ -406,6 +445,9 @@
             <div id="progressBarFill" class="progress-bar-fill"></div>
         </div>
 
+        <!-- لوحة أرقام الأسئلة الملونة -->
+        <div class="questions-palette" id="questionsPalette"></div>
+
         <h3 id="qTitle" style="margin-bottom: 15px; text-align: left;">Question...</h3>
         <div id="optionsContainer"></div>
         
@@ -513,6 +555,10 @@
                         });
                     }
                     updatePendingBadge();
+                    // تحديث الملف الشخصي تلقائياً فور وصول بيانات النتائج من القاعدة
+                    if(currentUser && document.getElementById('profileTab').classList.contains('active')) {
+                        renderStudentProfile();
+                    }
                 });
 
                 db.ref('students').on('value', function(snapshot) {
@@ -586,7 +632,7 @@
 
     function verifyTeacherPassword() {
         var pass = document.getElementById('teacherPassInput').value;
-        if (pass === "RAOUF50") {
+        if (pass === "RAOUF2026") {
             document.getElementById('teacherPassInput').value = "";
             showScreen('teacherScreen');
             toggleTeacherView('addExam');
@@ -629,7 +675,10 @@
         document.getElementById('userNameDisplay').innerText = "👤 Student: " + currentUser.name;
         document.getElementById('userGradeDisplay').innerText = "📚 Grade: " + currentUser.grade;
         document.getElementById('userCenterDisplay').innerText = "📍 Center: " + (currentUser.center || 'N/A');
+        
+        // التحويل لصفحة الملف الشخصي وتحديث بياناته مباشرة فور الدخول
         switchTab('profileTab');
+        renderStudentProfile();
     }
 
     function logout() {
@@ -661,6 +710,7 @@
     }
 
     function renderStudentProfile() {
+        if (!currentUser) return;
         document.getElementById('profStudentName').innerText = "👤 " + currentUser.name;
         document.getElementById('profStudentGrade').innerText = "📚 Grade: " + currentUser.grade;
         document.getElementById('profStudentCenter').innerText = "📍 Center: " + (currentUser.center || 'N/A');
@@ -748,6 +798,35 @@
 
         document.getElementById('progressBarFill').style.width = percentage + "%";
         document.getElementById('progressText').innerText = "Answered " + answeredCount + " of " + total + " questions (" + percentage + "%)";
+        
+        renderQuestionsPalette();
+    }
+
+    function renderQuestionsPalette() {
+        var palette = document.getElementById('questionsPalette');
+        if (!palette || !currentExam) return;
+        palette.innerHTML = "";
+
+        currentExam.questions.forEach(function(q, idx) {
+            var btn = document.createElement('button');
+            btn.type = "button";
+            btn.className = "q-palette-btn";
+            btn.innerText = idx + 1;
+
+            var isAns = userAnswers[idx] !== "" && userAnswers[idx] !== null && userAnswers[idx] !== undefined && String(userAnswers[idx]).trim() !== "";
+            if (isAns) {
+                btn.classList.add('answered'); // أخضر للمحلول
+            }
+            if (idx === currentQIndex) {
+                btn.classList.add('current'); // أصفر للسؤال الحالي
+            }
+
+            btn.onclick = function() {
+                currentQIndex = idx;
+                renderQuestion();
+            };
+            palette.appendChild(btn);
+        });
     }
 
     function renderQuestion() {
@@ -1038,9 +1117,9 @@
         qDiv.dataset.type = type;
 
         if (type === 'MCQ') {
-            qDiv.innerHTML = '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong style="color:var(--primary);">MCQ Question (' + qCounter + ')</strong><button type="button" onclick="this.parentElement.parentElement.remove()" style="color:red; background:none; border:none; cursor:pointer;">Remove ❌</button></div><input type="text" class="q-text" placeholder="Question text..." style="margin-bottom:8px;"><div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;"><input type="text" class="q-opt-0" placeholder="Option A"><input type="text" class="q-opt-1" placeholder="Option B"><input type="text" class="q-opt-2" placeholder="Option C"><input type="text" class="q-opt-3" placeholder="Option D"></div><div style="display:flex; gap:8px;"><select class="q-correct" style="flex:2;"><option value="0">Option (A) is correct</option><option value="1">Option (B) is correct</option><option value="2">Option (C) is correct</option><option value="3">Option (D) is correct</option></select><input type="number" class="q-points" value="1" min="1" placeholder="Marks" style="flex:1;" lang="en"></div>';
+            qDiv.innerHTML = '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong style="color:var(--primary);">MCQ Question (' + qCounter + ')</strong><button type="button" onclick="this.parentElement.parentElement.remove()" style="color:red; background:none; border:none; cursor:pointer;">Remove ❌</button></div><input type="text" class="q-text" placeholder="Question text..." style="margin-bottom:8px;"><div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;"><input type="text" class="q-opt-0" placeholder="Option A"><input type="text" class="q-opt-1" placeholder="Option B"><input type="text" class="q-opt-2" placeholder="Option C"><input type="text" class="q-opt-3" placeholder="Option D"></div><div style="display:flex; gap:8px;"><select class="q-correct" style="flex:2;"><option value="0">Option (A) is correct</option><option value="1">Option (B) is correct</option><option value="2">Option (C) is correct</option><option value="3">Option (D) is correct</option></select><input type="number" class="q-points" value="1" min="1" placeholder="Marks" style="flex:1;" lang="en" inputmode="numeric"></div>';
         } else {
-            qDiv.innerHTML = '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong style="color:#8e44ad;">Essay Question (' + qCounter + ')</strong><button type="button" onclick="this.parentElement.parentElement.remove()" style="color:red; background:none; border:none; cursor:pointer;">Remove ❌</button></div><input type="text" class="q-text" placeholder="Essay question text..." style="margin-bottom:8px;"><textarea class="q-model-answer" placeholder="Model answer (visible to teacher only)..." rows="2" style="margin-bottom:8px;"></textarea><input type="number" class="q-points" value="2" min="1" placeholder="Allocated marks" lang="en">';
+            qDiv.innerHTML = '<div style="display:flex; justify-content:space-between; margin-bottom:8px;"><strong style="color:#8e44ad;">Essay Question (' + qCounter + ')</strong><button type="button" onclick="this.parentElement.parentElement.remove()" style="color:red; background:none; border:none; cursor:pointer;">Remove ❌</button></div><input type="text" class="q-text" placeholder="Essay question text..." style="margin-bottom:8px;"><textarea class="q-model-answer" placeholder="Model answer (visible to teacher only)..." rows="2" style="margin-bottom:8px;"></textarea><input type="number" class="q-points" value="2" min="1" placeholder="Allocated marks" lang="en" inputmode="numeric">';
         }
         builder.appendChild(qDiv);
     }
@@ -1275,7 +1354,7 @@
                 div.innerHTML = '<p style="text-align:left;"><strong>Q' + (idx+1) + ': ' + q.text + '</strong> [' + q.points + ' Marks]</p><p style="font-size:13px; color:' + (isCorrect ? 'green' : 'red') + '; margin-top:4px; text-align:left;">Student Answer: ' + (q.options[userAns] !== undefined ? q.options[userAns] : 'Not answered') + ' ' + (isCorrect ? '✅' : '❌') + '</p>' + (!isCorrect ? '<p style="font-size:12px; color:green; text-align:left;">Correct Answer: ' + q.options[q.correct] + '</p>' : '');
             } else {
                 var currentSingleScore = (result.essayScoresList && result.essayScoresList[idx] !== undefined) ? result.essayScoresList[idx] : q.points;
-                div.innerHTML = '<p style="text-align:left;"><strong>Q' + (idx+1) + ' (Essay): ' + q.text + '</strong> [' + q.points + ' Marks]</p><p style="background:white; padding:8px; border-radius:6px; border:1px solid #ddd; margin:6px 0; font-size:14px; color:#333; text-align:left;">Student Answer: ' + (userAns || 'No essay text provided') + '</p>' + (q.modelAnswer ? '<p style="font-size:12px; color:#27ae60; background:#e8f8f5; padding:6px; border-radius:5px; margin-bottom:8px; text-align:left;">💡 <b>Model Answer:</b> ' + q.modelAnswer + '</p>' : '') + (isPending ? '<div class="form-group" style="margin-top:8px;"><label style="font-size:12px;">Grade this question (Max ' + q.points + '):</label><input type="number" class="essay-score-input" data-qindex="' + idx + '" data-max="' + q.points + '" max="' + q.points + '" min="0" value="' + currentSingleScore + '" style="width:120px;" oninput="validateEssayInput(this, ' + q.points + ')" lang="en"></div>' : '<p style="font-size:12px; color:#27ae60; font-weight:bold; text-align:left;">Awarded Essay Marks: ' + currentSingleScore + ' / ' + q.points + '</p>');
+                div.innerHTML = '<p style="text-align:left;"><strong>Q' + (idx+1) + ' (Essay): ' + q.text + '</strong> [' + q.points + ' Marks]</p><p style="background:white; padding:8px; border-radius:6px; border:1px solid #ddd; margin:6px 0; font-size:14px; color:#333; text-align:left;">Student Answer: ' + (userAns || 'No essay text provided') + '</p>' + (q.modelAnswer ? '<p style="font-size:12px; color:#27ae60; background:#e8f8f5; padding:6px; border-radius:5px; margin-bottom:8px; text-align:left;">💡 <b>Model Answer:</b> ' + q.modelAnswer + '</p>' : '') + (isPending ? '<div class="form-group" style="margin-top:8px;"><label style="font-size:12px;">Grade this question (Max ' + q.points + '):</label><input type="number" class="essay-score-input" data-qindex="' + idx + '" data-max="' + q.points + '" max="' + q.points + '" min="0" value="' + currentSingleScore + '" style="width:120px;" oninput="validateEssayInput(this, ' + q.points + ')" lang="en" inputmode="numeric"></div>' : '<p style="font-size:12px; color:#27ae60; font-weight:bold; text-align:left;">Awarded Essay Marks: ' + currentSingleScore + ' / ' + q.points + '</p>');
             }
             body.appendChild(div);
         });

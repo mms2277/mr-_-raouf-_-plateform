@@ -109,7 +109,7 @@
         .progress-bar-container { background: #e0e0e0; border-radius: 10px; height: 10px; width: 100%; margin-bottom: 15px; overflow: hidden; }
         .progress-bar-fill { background: linear-gradient(90deg, #27ae60, #2ecc71); height: 100%; width: 0%; transition: width 0.3s ease; }
 
-        /* لوحة الأسئلة التفاعلية بالألوان الجديدة */
+        /* لوحة الأسئلة التفاعلية بالألوان */
         .questions-palette {
             display: flex;
             flex-wrap: wrap;
@@ -263,6 +263,7 @@
                 📝 Essay Grading <span id="pendingBadge" class="notification-badge" style="display:none;">0</span>
             </button>
             <button type="button" class="btn" style="background:#0284c7;" onclick="toggleTeacherView('trackAttendance')">👥 Attendance Tracker</button>
+            <button type="button" class="btn" style="background:#6d28d9;" onclick="toggleTeacherView('allStudentsList')">👨‍🎓 All Students</button>
             <button type="button" class="btn btn-danger" onclick="toggleTeacherView('manageExams')">🗑️ Manage Exams</button>
         </div>
 
@@ -339,7 +340,7 @@
             </div>
 
             <div id="attendanceContainer" style="display:none; margin-top:15px;">
-                <h5 style="color:#27ae60; margin-bottom:5px; text-align: left;">✅ Students Who Attended:</h5>
+                <h5 id="attendedHeaderTitle" style="color:#27ae60; margin-bottom:5px; text-align: left;">✅ Students Who Attended:</h5>
                 <div style="overflow-x: auto; margin-bottom:20px;">
                     <table>
                         <thead>
@@ -355,7 +356,7 @@
                     </table>
                 </div>
 
-                <h5 style="color:#c0392b; margin-bottom:5px; text-align: left;">❌ Absent Students:</h5>
+                <h5 id="absentHeaderTitle" style="color:#c0392b; margin-bottom:5px; text-align: left;">❌ Absent Students:</h5>
                 <div style="overflow-x: auto;">
                     <table>
                         <thead>
@@ -369,6 +370,46 @@
                         <tbody id="absentStudentsTable"></tbody>
                     </table>
                 </div>
+            </div>
+        </div>
+
+        <!-- All Registered Students Section -->
+        <div id="teacherAllStudentsSection" style="display: none;">
+            <h4 style="margin-bottom: 10px; color: var(--primary); text-align: left;"><i class="fas fa-users"></i> All Registered Students List:</h4>
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap;">
+                <div class="form-group" style="flex: 1; min-width: 180px; margin-bottom: 0;">
+                    <label>Filter by Grade:</label>
+                    <select id="filterStudentsGrade" onchange="renderAllStudentsList()">
+                        <option value="ALL">All Grades</option>
+                        <option value="First Year Secondary">First Year Secondary</option>
+                        <option value="Second Year Secondary">Second Year Secondary</option>
+                        <option value="Third Year Secondary">Third Year Secondary</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1; min-width: 180px; margin-bottom: 0;">
+                    <label>Filter by Center:</label>
+                    <select id="filterStudentsCenter" onchange="renderAllStudentsList()">
+                        <option value="ALL">All Centers</option>
+                        <option value="Al-Tag Center">Al-Tag Center</option>
+                        <option value="Al-Batoul Center">Al-Batoul Center</option>
+                        <option value="Teba Center">Teba Center</option>
+                    </select>
+                </div>
+            </div>
+            <p id="totalStudentsCountText" style="font-size: 13px; font-weight: bold; color: var(--primary); text-align: left; margin-bottom: 8px;">Total Students: 0</p>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Student Name</th>
+                            <th>Academic Grade</th>
+                            <th>Center / Group</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="allRegisteredStudentsTable"></tbody>
+                </table>
             </div>
         </div>
 
@@ -555,7 +596,6 @@
                         });
                     }
                     updatePendingBadge();
-                    // تحديث الملف الشخصي تلقائياً فور وصول بيانات النتائج من القاعدة
                     if(currentUser && document.getElementById('profileTab').classList.contains('active')) {
                         renderStudentProfile();
                     }
@@ -565,8 +605,16 @@
                     allStudents = [];
                     if (snapshot.exists()) {
                         snapshot.forEach(function(child) {
-                            allStudents.push(child.val());
+                            var st = child.val();
+                            st.firebaseKey = child.key;
+                            allStudents.push(st);
                         });
+                    }
+                    if (document.getElementById('teacherAllStudentsSection').style.display === 'block') {
+                        renderAllStudentsList();
+                    }
+                    if (document.getElementById('teacherAttendanceSection').style.display === 'block' && document.getElementById('attendanceExamSelect').value) {
+                        renderAttendanceTracker();
                     }
                 });
             } catch(err) {
@@ -632,7 +680,7 @@
 
     function verifyTeacherPassword() {
         var pass = document.getElementById('teacherPassInput').value;
-        if (pass === "RAOUF2026") {
+        if (pass === "RAOUF50") {
             document.getElementById('teacherPassInput').value = "";
             showScreen('teacherScreen');
             toggleTeacherView('addExam');
@@ -662,7 +710,7 @@
 
         if (db) {
             try {
-                var studentId = btoa(unescape(encodeURIComponent(name.toLowerCase())));
+                var studentId = btoa(unescape(encodeURIComponent(name.trim().toLowerCase())));
                 db.ref('students/' + studentId).set({ name: name, grade: grade, center: center });
             } catch(err) {}
         }
@@ -676,7 +724,6 @@
         document.getElementById('userGradeDisplay').innerText = "📚 Grade: " + currentUser.grade;
         document.getElementById('userCenterDisplay').innerText = "📍 Center: " + (currentUser.center || 'N/A');
         
-        // التحويل لصفحة الملف الشخصي وتحديث بياناته مباشرة فور الدخول
         switchTab('profileTab');
         renderStudentProfile();
     }
@@ -815,10 +862,10 @@
 
             var isAns = userAnswers[idx] !== "" && userAnswers[idx] !== null && userAnswers[idx] !== undefined && String(userAnswers[idx]).trim() !== "";
             if (isAns) {
-                btn.classList.add('answered'); // أخضر للمحلول
+                btn.classList.add('answered');
             }
             if (idx === currentQIndex) {
-                btn.classList.add('current'); // أصفر للسؤال الحالي
+                btn.classList.add('current');
             }
 
             btn.onclick = function() {
@@ -1033,6 +1080,7 @@
         document.getElementById('teacherResultsSection').style.display = 'none';
         document.getElementById('teacherPendingSection').style.display = 'none';
         document.getElementById('teacherAttendanceSection').style.display = 'none';
+        document.getElementById('teacherAllStudentsSection').style.display = 'none';
         document.getElementById('teacherManageExamsSection').style.display = 'none';
 
         if (view === 'addExam') {
@@ -1049,6 +1097,9 @@
         } else if (view === 'trackAttendance') {
             document.getElementById('teacherAttendanceSection').style.display = 'block';
             populateAttendanceExamDropdown();
+        } else if (view === 'allStudentsList') {
+            document.getElementById('teacherAllStudentsSection').style.display = 'block';
+            renderAllStudentsList();
         } else if (view === 'manageExams') {
             document.getElementById('teacherManageExamsSection').style.display = 'block';
             renderManageExamsList();
@@ -1063,12 +1114,92 @@
         }
     }
 
+    // دالة تجميع جميع الطلاب الفريدين (سواء مسجلين في جدول students أو لديهم نتائج سابقة)
+    function getUnifiedStudentsList() {
+        var map = {};
+        allStudents.forEach(function(s) {
+            if (s && s.name) {
+                var key = s.name.trim().toLowerCase();
+                map[key] = {
+                    name: s.name.trim(),
+                    grade: s.grade || '',
+                    center: s.center || 'N/A',
+                    firebaseKey: s.firebaseKey || null
+                };
+            }
+        });
+        userResults.forEach(function(r) {
+            if (r && r.studentName) {
+                var key = r.studentName.trim().toLowerCase();
+                if (!map[key]) {
+                    map[key] = {
+                        name: r.studentName.trim(),
+                        grade: r.studentGrade || '',
+                        center: r.studentCenter || 'N/A',
+                        firebaseKey: null
+                    };
+                }
+            }
+        });
+        return Object.values(map);
+    }
+
+    function renderAllStudentsList() {
+        var tbody = document.getElementById('allRegisteredStudentsTable');
+        if (!tbody) return;
+        tbody.innerHTML = "";
+
+        var gradeFilter = document.getElementById('filterStudentsGrade').value;
+        var centerFilter = document.getElementById('filterStudentsCenter').value;
+
+        var unified = getUnifiedStudentsList();
+
+        if (gradeFilter !== 'ALL') {
+            unified = unified.filter(function(s) { return s.grade === gradeFilter; });
+        }
+        if (centerFilter !== 'ALL') {
+            unified = unified.filter(function(s) { return s.center === centerFilter; });
+        }
+
+        document.getElementById('totalStudentsCountText').innerText = "Total Students: " + unified.length;
+
+        if (unified.length === 0) {
+            tbody.innerHTML = "<tr><td colspan='5'>No students registered matching these filters.</td></tr>";
+            return;
+        }
+
+        unified.forEach(function(s, idx) {
+            var deleteBtnHtml = s.firebaseKey 
+                ? '<button type="button" class="btn btn-danger" style="padding:4px 8px; font-size:11px; margin:0;" onclick="deleteStudentAccount(\'' + s.firebaseKey + '\')">Delete 🗑️</button>'
+                : '<span style="font-size:11px; color:#888;">From Results</span>';
+
+            tbody.innerHTML += '<tr><td>' + (idx + 1) + '</td><td><strong>' + s.name + '</strong></td><td>' + s.grade + '</td><td><b style="color:#1e3c72;">' + s.center + '</b></td><td>' + deleteBtnHtml + '</td></tr>';
+        });
+    }
+
+    function deleteStudentAccount(studentKey) {
+        if (!studentKey || !db) return;
+        if (confirm("Are you sure you want to remove this student from the registered list?")) {
+            db.ref('students/' + studentKey).remove()
+                .then(function() {
+                    alert("Student removed successfully!");
+                })
+                .catch(function(err) {
+                    alert("Error: " + err.message);
+                });
+        }
+    }
+
     function populateAttendanceExamDropdown() {
         var select = document.getElementById('attendanceExamSelect');
+        var currentVal = select.value;
         select.innerHTML = '<option value="" disabled selected>Select an exam...</option>';
         examsData.forEach(function(exam) {
             select.innerHTML += '<option value="' + exam.id + '">' + exam.title + ' (' + exam.grade + ')</option>';
         });
+        if (currentVal) {
+            select.value = currentVal;
+        }
     }
 
     function renderAttendanceTracker() {
@@ -1078,7 +1209,11 @@
 
         document.getElementById('attendanceContainer').style.display = 'block';
 
-        var targetStudents = exam.grade === 'All Grades' ? allStudents : allStudents.filter(function(s){ return s.grade === exam.grade; });
+        var unifiedStudents = getUnifiedStudentsList();
+        var targetStudents = exam.grade === 'All Grades' 
+            ? unifiedStudents 
+            : unifiedStudents.filter(function(s){ return s.grade.trim() === exam.grade.trim(); });
+
         var attendedTable = document.getElementById('attendedStudentsTable');
         var absentTable = document.getElementById('absentStudentsTable');
         
@@ -1086,7 +1221,9 @@
         absentTable.innerHTML = "";
 
         var examResults = userResults.filter(function(r){ return r.examId === examId; });
-        var attendedNames = examResults.map(function(r){ return r.studentName; });
+        var attendedNormalizedNames = examResults.map(function(r){ return r.studentName.trim().toLowerCase(); });
+
+        document.getElementById('attendedHeaderTitle').innerText = "✅ Students Who Attended (" + examResults.length + "):";
 
         if (examResults.length === 0) {
             attendedTable.innerHTML = "<tr><td colspan='5'>No students have taken this exam yet.</td></tr>";
@@ -1097,7 +1234,12 @@
             });
         }
 
-        var absentStudents = targetStudents.filter(function(s){ return !attendedNames.includes(s.name); });
+        var absentStudents = targetStudents.filter(function(s){ 
+            return !attendedNormalizedNames.includes(s.name.trim().toLowerCase()); 
+        });
+
+        document.getElementById('absentHeaderTitle').innerText = "❌ Absent Students (" + absentStudents.length + "):";
+
         if (absentStudents.length === 0) {
             absentTable.innerHTML = "<tr><td colspan='4' style='color:green;'>🎉 All registered students for this grade have attended the exam.</td></tr>";
         } else {

@@ -758,7 +758,7 @@
 
     function verifyTeacherPassword() {
         var pass = document.getElementById('teacherPassInput').value;
-        if (pass === "RAOUF50") {
+        if (pass === "RAOUF2026") {
             document.getElementById('teacherPassInput').value = "";
             showScreen('teacherScreen');
             toggleTeacherView('addExam');
@@ -788,9 +788,12 @@
 
         if (db) {
             try {
-                var studentId = btoa(unescape(encodeURIComponent(name.trim().toLowerCase())));
-                db.ref('students/' + studentId).set({ name: name, grade: grade, center: center });
-            } catch(err) {}
+                // تعديل هنا: استخدام push() لضمان إنشاء عقدة students وحفظ الطالب فوراً دون أخطاء التشفير
+                var studentRef = db.ref('students').push();
+                studentRef.set({ name: name, grade: grade, center: center });
+            } catch(err) {
+                console.warn("Student save error:", err);
+            }
         }
 
         setupLoggedInUser();
